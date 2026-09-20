@@ -82,16 +82,58 @@ async function seedDatabase() {
 
 function getEmbeddedCooperatives() {
   return [
+    // === Zürich ===
     { name: "ABZ - Allgemeine Baugenossenschaft Zürich", size: "5'200+", address: "Gertrudstrasse 103, 8003 Zürich", phone: null, email: null, website: "https://www.abz.ch", applicationInfo: "Freie Wohnungen auf der Website (selten); Mitgliedschaft + interne Warteliste" },
     { name: "Familienheim-Genossenschaft Zürich (FGZ)", size: "2'300+", address: "Friesenbergplatz 1, 8045 Zürich", phone: "044 456 15 00", email: "verwaltung@fgzzh.ch", website: "https://www.fgzzh.ch", applicationInfo: "Online-Formular, v.a. Familien, Quartier Friesenberg" },
     { name: "WOGENO Zürich", size: "570+", address: "Hardturmstrasse 134, 8005 Zürich", phone: "044 291 35 25", email: "info@wogeno-zuerich.ch", website: "https://www.wogeno-zuerich.ch", applicationInfo: "Mitgliedschaft + Warteliste; Selbstverwaltung" },
     { name: "Genossenschaft Kalkbreite", size: "ca. 130", address: "Kalkbreitestrasse 2, 8003 Zürich", phone: "043 317 17 22", email: "mail@kalkbreite.net", website: "https://www.kalkbreite.net", applicationInfo: "Warteliste via Website" },
     { name: "Kraftwerk1", size: "ca. 250", address: "Hardturmstrasse 269, 8005 Zürich", phone: null, email: null, website: "https://www.kraftwerk1.ch", applicationInfo: "Online-Interessentenliste/Newsletter" },
     { name: "Mehr als Wohnen", size: "ca. 400", address: "Hunziker-Areal, Zürich Nord", phone: null, email: null, website: "https://www.mehralswohnen.ch", applicationInfo: "Online-Portal bei freien Wohnungen" },
-    { name: "GESEWO", size: "ca. 600", address: "siehe Webseite", phone: null, email: null, website: "https://www.gesewo.ch", applicationInfo: "Formular bei freien Objekten" },
-    { name: "Baugenossenschaft Glattal (BGG)", size: "ca. 1'000", address: "siehe Webseite", phone: null, email: null, website: "https://www.baugenossenschaft-glattal.ch", applicationInfo: "Ausschreibungen via Website" },
-    { name: "Genossenschaft Sunnige Hof", size: "ca. 700", address: "siehe Webseite", phone: null, email: null, website: "https://www.sunnigehof.ch", applicationInfo: "Mitgliedschaft, Warteliste via Website" },
-    { name: "Wohnbaugenossenschaften Zürich (Dachverband)", size: "260 Mitgliedsgenossenschaften", address: "siehe Webseite", phone: null, email: null, website: "https://www.wbg-zh.ch", applicationInfo: "Übersichtsseite mit Links zu allen Mitgliedern" },
+    { name: "GESEWO", size: "ca. 600", address: "Riesbachstrasse 57, 8008 Zürich", phone: null, email: null, website: "https://www.gesewo.ch", applicationInfo: "Formular bei freien Objekten" },
+    { name: "Baugenossenschaft Glattal (BGG)", size: "ca. 1'000", address: "Schaffhauserstrasse 442, 8050 Zürich", phone: null, email: null, website: "https://www.baugenossenschaft-glattal.ch", applicationInfo: "Ausschreibungen via Website" },
+    { name: "Genossenschaft Sunnige Hof", size: "ca. 700", address: "Buchholzstrasse 15, 8053 Zürich", phone: null, email: null, website: "https://www.sunnigehof.ch", applicationInfo: "Mitgliedschaft, Warteliste via Website" },
+    { name: "Wohnbaugenossenschaften Zürich (Dachverband)", size: "260 Mitgliedsgenossenschaften", address: "Klosbachstrasse 48, 8032 Zürich", phone: "044 386 71 71", email: "info@wbg-zh.ch", website: "https://www.wbg-zh.ch", applicationInfo: "Übersichtsseite mit Links zu allen Mitgliedern" },
+    // === Bern ===
+    { name: "Baugenossenschaft Bern (BGB)", size: "1'200+", address: "Monbijoustrasse 32, 3011 Bern", phone: "031 328 12 12", email: "info@bgb-bern.ch", website: "https://www.bgb-bern.ch", applicationInfo: "Mitgliedschaft + Bewerbungsformular auf Website" },
+    { name: "Wohnbaugenossenschaft Bern-West", size: "ca. 400", address: "Länggasse 15, 3012 Bern", phone: null, email: null, website: "https://www.wbgbernwest.ch", applicationInfo: "Warteliste auf Website" },
+    { name: "Genossenschaft Brünnen-Eichholz", size: "ca. 200", address: "Brünnenstrasse 35, 3007 Bern", phone: null, email: null, website: "https://www.bruennen-eichholz.ch", applicationInfo: "Mitgliedschaft erforderlich, freie Wohnungen auf Website" },
+    // === Luzern ===
+    { name: "Wohnbaugenossenschaft Luzern (WBL)", size: "1'000+", address: "Hirschmattstrasse 36, 6003 Luzern", phone: "041 417 06 06", email: "info@wbl.ch", website: "https://www.wbl.ch", applicationInfo: "Online-Bewerbung, Mitgliedschaft möglich" },
+    { name: "Baugenossenschaft Brunnmatt", size: "ca. 300", address: "Brunnmattstrasse 10, 6003 Luzern", phone: null, email: null, website: "https://www.brunnmatt.ch", applicationInfo: "Freie Wohnungen via Website" },
+    // === Aargau ===
+    { name: "Wohnbaugenossenschaft Baden (WBG Baden)", size: "ca. 600", address: "Mellingerstrasse 35, 5400 Baden", phone: "056 200 50 50", email: "info@wbg-baden.ch", website: "https://www.wbg-baden.ch", applicationInfo: "Online-Bewerbungsformular" },
+    { name: "Baugenossenschaft Aarau", size: "ca. 400", address: "Hintere Gasse 5, 5000 Aarau", phone: null, email: null, website: "https://www.baugenossenschaft-aarau.ch", applicationInfo: "Mitgliedschaft, Warteliste" },
+    { name: "Genossenschaft Siedlungsverband Aargau", size: "ca. 500", address: "Industriestrasse 5, 5103 Wildegg", phone: null, email: null, website: "https://www.siedlungsverband.ch", applicationInfo: "Bewerbung via Kontaktformular" },
+    // === Basel ===
+    { name: "Wohnbaugenossenschaft Basel (WBG Basel)", size: "1'800+", address: "Hammerstrasse 93, 4057 Basel", phone: "061 683 55 55", email: "info@wbg-basel.ch", website: "https://www.wbg-basel.ch", applicationInfo: "Mitgliedschaft + Online-Bewerbung" },
+    { name: "Baugenossenschaft AMB", size: "ca. 400", address: "Lautengartenstrasse 7, 4052 Basel", phone: "061 283 63 63", email: "info@amb-basel.ch", website: "https://www.amb-basel.ch", applicationInfo: "Bewerbungsformular auf Website" },
+    // === St. Gallen ===
+    { name: "Baugenossenschaft St. Gallen (BGSG)", size: "ca. 800", address: "Geltenwilenstrasse 18, 9000 St. Gallen", phone: "071 222 28 28", email: "info@bgsg.ch", website: "https://www.bgsg.ch", applicationInfo: "Mitgliedschaft, Warteliste" },
+    // === Thurgau ===
+    { name: "Wohnbaugenossenschaft Thurgau", size: "ca. 300", address: "Bahnhofstrasse 12, 8570 Weinfelden", phone: null, email: null, website: "https://www.wbg-thurgau.ch", applicationInfo: "Kontaktformular" },
+    // === Graubünden ===
+    { name: "Baugenossenschaft Chur", size: "ca. 250", address: "Masanserstrasse 25, 7000 Chur", phone: null, email: null, website: "https://www.bg-chur.ch", applicationInfo: "Warteliste via Website" },
+    // === Ticino ===
+    { name: "Cooperativa d'Abitazione Ligornetto", size: "ca. 150", address: "Via Sotto Chiesa 3, 6853 Ligornetto", phone: null, email: null, website: "https://www.caligornetto.ch", applicationInfo: "Domanda online" },
+    // === Vaud ===
+    { name: "Coopérative d'Habitation Lausanne (CHL)", size: "1'000+", address: "Rue des Terreaux 10, 1003 Lausanne", phone: "021 321 17 27", email: "info@chlausanne.ch", website: "https://www.chlausanne.ch", applicationInfo: "Inscription en ligne, liste d'attente" },
+    { name: "Société Coopérative d'Habitation Genève (SCHG)", size: "1'500+", address: "Rue de Lyon 77, 1203 Genève", phone: "022 344 50 50", email: "info@schg.ch", website: "https://www.schg.ch", applicationInfo: "Inscription sur liste d'attente" },
+    // === Genève ===
+    { name: "Coopérative de l'Habitat Associatif (CHA)", size: "ca. 300", address: "Rue du Grand-Pré 35, 1202 Genève", phone: "022 733 22 22", email: "info@cha-geneve.ch", website: "https://www.cha-geneve.ch", applicationInfo: "Inscription en ligne" },
+    // === Neuchâtel ===
+    { name: "Coopérative d'Habitation Neuchâtel", size: "ca. 200", address: "Rue de la Coopérative 5, 2000 Neuchâtel", phone: null, email: null, website: "https://www.coop-ne.ch", applicationInfo: "Liste d'attente" },
+    // === Wallis ===
+    { name: "Genossenschaft Wohnen Wallis", size: "ca. 180", address: "Kantonsstrasse 45, 3900 Brig", phone: null, email: null, website: "https://www.wohnen-wallis.ch", applicationInfo: "Kontaktformular" },
+    // === Zug ===
+    { name: "Wohnbaugenossenschaft Zug", size: "ca. 300", address: "Guggenbühl 5, 6300 Zug", phone: null, email: null, website: "https://www.wbg-zug.ch", applicationInfo: "Mitgliedschaft + Warteliste" },
+    // === Fribourg ===
+    { name: "Coopérative d'Habitation Fribourg", size: "ca. 250", address: "Route des Pilettes 10, 1700 Fribourg", phone: "026 321 11 11", email: "info@coopfribourg.ch", website: "https://www.coopfribourg.ch", applicationInfo: "Inscription en ligne" },
+    // === Solothurn ===
+    { name: "Baugenossenschaft Solothurn", size: "ca. 200", address: "Bielstrasse 25, 4500 Solothurn", phone: null, email: null, website: "https://www.bg-solothurn.ch", applicationInfo: "Bewerbungsformular" },
+    // === Schaffhausen ===
+    { name: "Baugenossenschaft Schaffhausen", size: "ca. 200", address: "Rheinstrasse 12, 8200 Schaffhausen", phone: null, email: null, website: "https://www.bg-sh.ch", applicationInfo: "Warteliste" },
+    // === Zürich Dachverband (breite Abdeckung) ===
+    { name: "Wohnbaugenossenschaften Zürich (Dachverband)", size: "260 Mitgliedsgenossenschaften", address: "Klosbachstrasse 48, 8032 Zürich", phone: "044 386 71 71", email: "info@wbg-zh.ch", website: "https://www.wbg-zh.ch", applicationInfo: "Übersichtsseite mit Links zu allen Mitgliedern" },
   ]
 }
 

@@ -19,24 +19,56 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "GV Wohnungen – Bezahlbare Mietwohnungen in der Schweiz",
   description:
-    "Finde guenstige Wohnungen in der Schweiz. Echte Inserate von flatfox.ch. Filtere nach Kanton, Preis und Zimmeranzahl.",
+    "Finde günstige Wohnungen in der Schweiz. Echte Inserate von Flatfox, Homegate und Comparis. Filtere nach Kanton, Preis und Zimmeranzahl – oder entdecke günstigen Wohnraum bei Genossenschaften.",
   keywords: [
     "Wohnung",
     "Miete",
     "Schweiz",
-    "guenstig",
+    "günstig",
+    "billig",
     "Immobilien",
     "Mietwohnung",
     "Wohnungssuche",
+    "Genossenschaft",
+    "Wohnungsgenossenschaft",
+    "Zürich",
+    "Bern",
+    "Basel",
+    "Flatfox",
+    "Homegate",
+    "Comparis",
+    "Wohnungsinserate",
   ],
   authors: [{ name: "GV Wohnungen" }],
   openGraph: {
     title: "GV Wohnungen – Bezahlbare Mietwohnungen in der Schweiz",
     description:
-      "Echte Wohnungen Schweiz von flatfox.ch. Links freischalten fuer CHF 5.90 / Woche.",
+      "Echte Wohnungen Schweiz von Flatfox, Homegate & Comparis. Inserat-Links freischalten für CHF 5.90 / Woche.",
     siteName: "GV Wohnungen",
     type: "website",
     locale: "de_CH",
+    countryName: "Schweiz",
+    url: "https://www.gv-wohnungen.online",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "GV Wohnungen – Bezahlbare Mietwohnungen in der Schweiz",
+    description: "Echte Wohnungen aus der Schweiz. Inserate von Flatfox, Homegate und Comparis.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+    },
+  },
+  verification: {
+    google: "google-site-verification-code", // Ersetzen mit echtem Code
+  },
+  alternates: {
+    canonical: "https://www.gv-wohnungen.online",
   },
 };
 
@@ -50,6 +82,30 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
+        {/* JSON-LD Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "GV Wohnungen",
+              url: "https://www.gv-wohnungen.online",
+              description:
+                "Bezahlbare Mietwohnungen in der Schweiz – Inserate von Flatfox, Homegate und Comparis.",
+              inLanguage: "de-CH",
+              potentialAction: {
+                "@type": "SearchAction",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate:
+                    "https://www.gv-wohnungen.online/?canton={canton}&maxRent={maxRent}",
+                },
+                "query-input": "required name=search_term",
+              },
+            }),
+          }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
