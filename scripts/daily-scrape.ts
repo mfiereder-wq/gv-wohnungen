@@ -57,13 +57,17 @@ async function fetchApartments(): Promise<FlatfoxListing[]> {
   // Fetch multiple pages to find enough apartments (apartments are ~5% of listings)
   for (let page = 1; page <= 20; page++) {
     const url = `${API_BASE}?max_price=${MAX_RENT}&limit=${SCRAPE_LIMIT}&offset=${(page - 1) * SCRAPE_LIMIT}`
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15000)
     const resp = await fetch(url, {
+      signal: controller.signal,
       headers: {
         Accept: "application/json",
         "User-Agent": "Mozilla/5.0 (compatible; GVWohnungen/1.0; +https://www.gv-wohnungen.online)",
         Referer: "https://flatfox.ch/en/search/",
       },
     })
+    clearTimeout(timeout)
     
     if (!resp.ok) {
       console.warn(`  [api] HTTP ${resp.status} on page ${page}`)
@@ -99,7 +103,36 @@ async function fetchApartments(): Promise<FlatfoxListing[]> {
   return apartments
 }
 
-/// Map Flatfox API item to our schema
+/// Fetch real image URLs from the Flatfox listing page HTML
+async function fetchListingImages(url: string): Promise<string[]> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000)
+    const resp = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; GVWohnungen/1.0; +https://www.gv-wohnungen.online)",
+        Accept: "text/html",
+      },
+    })
+    clearTimeout(timeout)
+    if (!resp.ok) return []
+    const html = await resp.text()
+    // Extract image URLs from href attributes pointing to /media/ff/YYYY/MM/hash.jpg
+    const imgRegex = /href="(\/media\/ff\/\d{4}\/\d{2}\/[a-z0-9]+\.(?:jpg|jpeg|png))"/gi
+    const images: string[] = []
+    let m: RegExpExecArray | null
+    while ((m = imgRegex.exec(html)) !== null) {
+      const fullUrl = `https://flatfox.ch${m[1]}`
+      if (!images.includes(fullUrl)) images.push(fullUrl)
+    }
+    return images
+  } catch {
+    return []
+  }
+}
+
+/// Map Flatfox API item to our schema (without images – fetched separately)
 function mapListing(item: FlatfoxListing): Record<string, any> | null {
   if (!item.pk) return null
   
@@ -135,22 +168,6 @@ function mapListing(item: FlatfoxListing): Record<string, any> | null {
   const relSubmit = item.submit_url || ""
   const submitUrl = relSubmit.startsWith("http") ? relSubmit : relSubmit ? `https://flatfox.ch${relSubmit}` : null
 
-  // Images: cover_image and images are IDs, construct URLs
-  const images: string[] = []
-  if (item.cover_image) {
-    images.push(`https://flatfox.ch/media/ff/2026/09/${item.cover_image}.jpg`)
-  }
-  // images array also contains IDs
-  if (item.images && Array.isArray(item.images)) {
-    for (const imgId of item.images) {
-      const id = typeof imgId === "object" ? (imgId as any).pk || (imgId as any).id : imgId
-      if (id && typeof id === "number") {
-        const url = `https://flatfox.ch/media/ff/2026/09/${id}.jpg`
-        if (!images.includes(url)) images.push(url)
-      }
-    }
-  }
-
   // Rent utilities
   const utilities = item.rent_charges || 0
 
@@ -181,7 +198,7 @@ function mapListing(item: FlatfoxListing): Record<string, any> | null {
     zip,
     city,
     canton,
-    images,
+    images: [], // filled separately via fetchListingImages
     contactName: item.agency?.name || item.agency?.name_2 || null,
     contactEmail: item.agency?.email || null,
     contactPhone: item.agency?.phone || null,
@@ -238,6 +255,12 @@ async function main() {
 
     if (existing) {
       // Update existing listing
+      let images = mapped.images
+      // Fetch real images from the listing page if none cached
+      if (images.length === 0) {
+        images = await fetchListingImages(mapped.originalLink)
+      }
+      const finalImages = images.length > 0 ? images : ["/images/placeholder.svg"]
       await db.property.update({
         where: { id: existing.id },
         data: {
@@ -247,7 +270,7 @@ async function main() {
           utilities: mapped.utilities,
           rooms: mapped.rooms,
           area: mapped.area,
-          images: JSON.stringify(mapped.images),
+          images: JSON.stringify(finalImages),
           availableFrom: mapped.availableFrom,
           fetchedAt: new Date(),
         },
@@ -255,7 +278,10 @@ async function main() {
       updated++
       console.log(`${progress} ✓ Updated: ${mapped.title} (CHF ${mapped.rent}, ${mapped.city})`)
     } else {
-      // New listing
+      // New listing: fetch real images from the page
+      const images = await fetchListingImages(mapped.originalLink)
+      // Fallback: placeholder image if no real images found
+      const finalImages = images.length > 0 ? images : ["/images/placeholder.svg"]
       await db.property.create({
         data: {
           title: mapped.title,
@@ -267,7 +293,7 @@ async function main() {
           zip: mapped.zip,
           city: mapped.city,
           canton: mapped.canton,
-          images: JSON.stringify(mapped.images),
+          images: JSON.stringify(finalImages),
           contactName: mapped.contactName,
           contactEmail: mapped.contactEmail,
           contactPhone: mapped.contactPhone,
