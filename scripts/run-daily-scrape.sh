@@ -9,18 +9,18 @@ DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$DIR"
 
 # Load .env if exists
-if [ -f .env ]; then
+if [ -f "$DIR/.env" ]; then
   set -a
-  source .env
+  source "$DIR/.env"
   set +a
 fi
 
 if [ -z "${DATABASE_URL:-}" ]; then
   echo "ERROR: DATABASE_URL is not set."
-  echo "Set it in .env or export DATABASE_URL=postgresql://..."
+  echo "Set it in $DIR/.env or export DATABASE_URL=postgresql://..."
   exit 1
 fi
 
 echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] Starting daily Flatfox scrape …"
-npx tsx scripts/daily-scrape.ts 2>&1
+npx tsx "$DIR/scripts/daily-scrape.ts" 2>&1
 echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] Scrape finished (exit: $?)"

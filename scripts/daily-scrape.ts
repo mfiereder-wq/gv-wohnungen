@@ -1,320 +1,313 @@
 #!/usr/bin/env tsx
 /**
- * GV Wohnungen – Daily Flatfox Scrape Agent
- * ===========================================
+ * GV Wohnungen – Daily Flatfox Scrape Agent (v2 – API-basiert)
+ * ==============================================================
  *
- * What it does:
- * 1. Fetches ALL Flatfox listing URLs from the official sitemap
- * 2. Compares with existing DB listings
- * 3. Fetches detail data for NEW listings (from the sitemap)
- * 4. REMOVES listings that are no longer in the sitemap = nicht mehr verfügbar
- * 5. Updates existing listings if the sitemap shows a newer lastmod
+ * Nutzt Flatfox' PUBLIC API (/api/v1/public-listing/) statt Sitemap.
+ * Das liefert NUR Wohnungen direkt mit Preis, Zimmer, Kanton etc.
  *
  * Usage:   npx tsx scripts/daily-scrape.ts
- * Cron:    @daily  or  0 9 * * *   (runs once daily, e.g. 09:00 UTC)
+ * Cron:    every day at 9am
  *
  * Env:
- *   DATABASE_URL  – PostgreSQL connection string (required)
- *   MAX_RENT      – Max Miete in CHF (default: 1500, set 0 for no limit)
- *   MAX_DAYS_OLD  – Max age in days for new listings (default: 7)
+ *   DATABASE_URL  – PostgreSQL (required)
+ *   MAX_RENT      – Max Miete CHF (default: 1500)
+ *   MAX_DAYS_OLD  – Max Alter Tage für neue Inserate (default: 3)
+ *   SCRAPE_LIMIT  – Max Inserate pro Scrape (default: 30)
  */
+
+import "dotenv/config"
+import * as path from "path"
+import { config } from "dotenv"
+config({ path: path.resolve(process.cwd(), ".env") })
 
 import { db } from "../src/lib/db"
 import { ensureDbReady } from "../src/lib/ensure-db"
-import { mapFlatfoxItem } from "../src/lib/flatfox-mapper"
 
 const MAX_RENT = Number(process.env.MAX_RENT || 1500)
-const MAX_DAYS_OLD = Number(process.env.MAX_DAYS_OLD || 7)
-const SITEMAP_URL = "https://flatfox.ch/sitemaps/sitemap-pdp-listings-en-1.xml.gz"
+const MAX_DAYS_OLD = Number(process.env.MAX_DAYS_OLD || 3)
+const SCRAPE_LIMIT = Number(process.env.SCRAPE_LIMIT || 30)
+const API_BASE = "https://flatfox.ch/api/v1/public-listing/"
 
-interface SitemapEntry {
+interface FlatfoxListing {
+  pk: number
+  title: string
+  rent_display?: string
+  rent?: number
+  rent_charges?: number
+  number_of_rooms?: string
+  surface_living?: number
+  city?: string
+  zipcode?: string
+  state?: string
+  cover_image?: string
+  images?: string[]
   url: string
-  lastmod: string
+  submit_url?: string
+  move_in_date?: string
+  listing_type?: string
+  [key: string]: any
 }
 
-/// Fetch and parse the Flatfox sitemap, return all listing URLs with lastmod
-async function fetchSitemap(): Promise<SitemapEntry[]> {
-  console.log("[sitemap] Fetching Flatfox listing sitemap …")
-  const resp = await fetch(SITEMAP_URL)
-  if (!resp.ok) throw new Error(`Sitemap fetch failed: ${resp.status}`)
-  const buf = await resp.arrayBuffer()
-  // Decompress gzip
-  const decompressed = new Uint8Array(
-    await new Response(
-      new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip")),
-    ).arrayBuffer(),
-  )
-  const xml = new TextDecoder().decode(decompressed)
-
-  const entries: SitemapEntry[] = []
-  const urlRegex = /<url>([\s\S]*?)<\/url>/g
-  let match: RegExpExecArray | null
-  while ((match = urlRegex.exec(xml)) !== null) {
-    const block = match[1]
-    const loc = block.match(/<loc>([^<]+)<\/loc>/)?.[1]
-    const lastmod = block.match(/<lastmod>([^<]+)<\/lastmod>/)?.[1]
-    if (loc) {
-      entries.push({ url: loc, lastmod: lastmod || "" })
-    }
-  }
-
-  console.log(`[sitemap] ${entries.length} listings found`)
-  return entries
-}
-
-/// Fetch a single listing page and extract structured data
-async function scrapeListingPage(url: string): Promise<Record<string, any> | null> {
-  try {
+/// Fetch apartments from Flatfox API
+async function fetchApartments(): Promise<FlatfoxListing[]> {
+  console.log(`[api] Fetching from ${API_BASE}?max_price=${MAX_RENT}&limit=${SCRAPE_LIMIT} …`)
+  const allListings: FlatfoxListing[] = []
+  
+  // Fetch multiple pages to find enough apartments (apartments are ~5% of listings)
+  for (let page = 1; page <= 20; page++) {
+    const url = `${API_BASE}?max_price=${MAX_RENT}&limit=${SCRAPE_LIMIT}&offset=${(page - 1) * SCRAPE_LIMIT}`
     const resp = await fetch(url, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; GVWohnungen/1.0; +https://www.gv-wohnungen.online)",
-        Accept: "text/html,application/xhtml+xml",
+        Accept: "application/json",
+        "User-Agent": "Mozilla/5.0 (compatible; GVWohnungen/1.0; +https://www.gv-wohnungen.online)",
+        Referer: "https://flatfox.ch/en/search/",
       },
     })
+    
     if (!resp.ok) {
-      if (resp.status === 404) return null // listing gone
-      console.warn(`  [warn] ${resp.status} for ${url}`)
-      return null
+      console.warn(`  [api] HTTP ${resp.status} on page ${page}`)
+      break
     }
-    const html = await resp.text()
-
-    // Extract Open Graph meta tags
-    const og: Record<string, string> = {}
-    const ogRegex = /<meta\s+(?:property|name)="(og:[^"]+)"\s+content="([^"]*)"\s*\/?>/gi
-    let m: RegExpExecArray | null
-    while ((m = ogRegex.exec(html)) !== null) {
-      og[m[1]] = m[2]
+    
+    const data = await resp.json()
+    const results = data.results || []
+    
+    if (!Array.isArray(results) || results.length === 0) break
+    
+    allListings.push(...results)
+    
+    // Stop early if we have enough apartments
+    const aptCount = allListings.filter((l) => (l.object_category || "").toUpperCase() === "APARTMENT").length
+    if (aptCount >= 50) {
+      console.log(`  [api] page ${page}: ${results.length} listings (${aptCount} apartments so far, enough)`)
+      break
     }
+    
+    // Rate limit
+    await new Promise((r) => setTimeout(r, 500))
+  }
+  
+  console.log(`[api] Total: ${allListings.length} affordable listings fetched`)
 
-    // Extract price from title or description (e.g. "CHF 794" or "794")
-    const titleText = og["og:title"] || ""
-    const descText = og["og:description"] || ""
-    const fullText = titleText + " " + descText
+  // Filter: nur echte Wohnungen (APARTMENT object_category)
+  const apartments = allListings.filter((l) => {
+    const cat = (l.object_category || "").toUpperCase()
+    return cat === "APARTMENT"
+  })
 
-    // Try to find rent in the title/description
-    let rent = 0
-    const priceMatch = fullText.match(/(?:CHF\s*)?(\d[\d'’]?\d{0,3})(?:\s*incl)?/i)
-    if (priceMatch) {
-      rent = parseInt(priceMatch[1].replace(/['’]/g, ""), 10) || 0
-    }
+  return apartments
+}
 
-    // Try to extract rooms
-    let rooms = 0
-    const roomsMatch = fullText.match(/(\d+(?:\.\d)?)\s*(?:room|zimmer|piece)/i)
-    if (roomsMatch) rooms = parseFloat(roomsMatch[1])
+/// Map Flatfox API item to our schema
+function mapListing(item: FlatfoxListing): Record<string, any> | null {
+  if (!item.pk) return null
+  
+  // Nur APARTMENT object_category
+  const cat = (item.object_category || "").toUpperCase()
+  if (cat !== "APARTMENT") return null
 
-    // Try to extract area
-    let area = 0
-    const areaMatch = fullText.match(/(\d+)\s*m[²2]/i)
-    if (areaMatch) area = parseInt(areaMatch[1], 10)
+  const rent = item.price_display || item.rent_net || 0
+  if (rent <= 0) return null
+  if (rent > MAX_RENT) return null
 
-    // Try to extract canton from the URL or description
-    const cantonKeywords = [
-      "Zürich", "Bern", "Luzern", "Uri", "Schwyz", "Obwalden", "Nidwalden",
-      "Glarus", "Zug", "Fribourg", "Solothurn", "Basel-Stadt", "Basel-Landschaft",
-      "Schaffhausen", "Appenzell", "St. Gallen", "Graubünden", "Aargau",
-      "Thurgau", "Ticino", "Vaud", "Valais", "Neuchâtel", "Genève", "Jura",
-    ]
-    let canton = ""
-    for (const c of cantonKeywords) {
-      if (descText.includes(c) || titleText.includes(c) || url.includes(encodeURIComponent(c))) {
-        canton = c
-        break
+  const zip = String(item.zipcode || "")
+  const city = item.city || ""
+  
+  // State code -> canton name
+  const stateMap: Record<string, string> = {
+    ZH: "Zürich", BE: "Bern", LU: "Luzern", UR: "Uri", SZ: "Schwyz",
+    OW: "Obwalden", NW: "Nidwalden", GL: "Glarus", ZG: "Zug",
+    FR: "Fribourg", SO: "Solothurn", BS: "Basel-Stadt", BL: "Basel-Landschaft",
+    SH: "Schaffhausen", AR: "Appenzell Ausserrhoden", AI: "Appenzell Innerrhoden",
+    SG: "St. Gallen", GR: "Graubünden", AG: "Aargau", TG: "Thurgau",
+    TI: "Ticino", VD: "Vaud", VS: "Valais", NE: "Neuchâtel",
+    GE: "Genève", JU: "Jura",
+  }
+  const stateCode = String(item.state || "").toUpperCase()
+  const canton = stateMap[stateCode] || ""
+
+  // Build absolute URL from relative path
+  const relUrl = item.url || ""
+  const originalLink = relUrl.startsWith("http") ? relUrl : `https://flatfox.ch${relUrl || `/en/flat/${item.pk}/`}`
+  
+  // Submit URL
+  const relSubmit = item.submit_url || ""
+  const submitUrl = relSubmit.startsWith("http") ? relSubmit : relSubmit ? `https://flatfox.ch${relSubmit}` : null
+
+  // Images: cover_image and images are IDs, construct URLs
+  const images: string[] = []
+  if (item.cover_image) {
+    images.push(`https://flatfox.ch/media/ff/2026/09/${item.cover_image}.jpg`)
+  }
+  // images array also contains IDs
+  if (item.images && Array.isArray(item.images)) {
+    for (const imgId of item.images) {
+      const id = typeof imgId === "object" ? (imgId as any).pk || (imgId as any).id : imgId
+      if (id && typeof id === "number") {
+        const url = `https://flatfox.ch/media/ff/2026/09/${id}.jpg`
+        if (!images.includes(url)) images.push(url)
       }
     }
+  }
 
-    // Try to extract city and zip
-    let city = ""
-    let zip = ""
-    const locationMatch = descText.match(/(\d{4})\s+([A-Za-zäöüÄÖÜéèêÉÈ\s-]+)/)
-    if (locationMatch) {
-      zip = locationMatch[1]
-      city = locationMatch[2].trim()
-    }
+  // Rent utilities
+  const utilities = item.rent_charges || 0
 
-    // Build a flatfox-like data object that the mapper can understand
-    const item: Record<string, any> = {
-      url: url,
-      public_title: titleText.replace(/Rent a \d+ room apartment at?\s*/i, "").trim(),
-      description: descText,
-      rent_gross: rent,
-      number_of_rooms: String(rooms),
-      surface_living: area,
-      cover_image: og["og:image"] || "",
-      images: og["og:image"] ? [og["og:image"]] : [],
-      city: city,
-      zipcode: zip,
-      state: canton,
-      // The URL often contains the listing ID
-      pk: url.match(/\/(\d+)\/?$/)?.[1] || null,
-      // Flatfox submit URL pattern
-      submit_url: url.includes("/flat/")
-        ? url.replace("/flat/", "/en/listing/").replace(/\/\d+\/?$/, "/submit/")
-        : null,
-    }
+  // Rooms (API returns null for some fields)
+  const rooms = parseFloat(String(item.number_of_rooms || "0")) || 0
 
-    return item
-  } catch (e) {
-    console.warn(`  [error] Failed to scrape ${url}: ${e}`)
-    return null
+  // Area
+  const area = item.livingspace || item.surface_living || item.space_display || 0
+
+  // Available from
+  let availableFrom = ""
+  if (item.moving_date && item.moving_date_type !== "agr") {
+    try {
+      availableFrom = new Date(item.moving_date).toISOString().slice(0, 10)
+    } catch { /* ignore */ }
+  }
+
+  // Title: use public_title or construct one
+  const title = item.public_title || item.rent_title || item.short_title || `Wohnung in ${zip} ${city}`
+
+  return {
+    title: String(title).slice(0, 300),
+    description: item.description || item.description_title || title,
+    rent: Math.round(rent),
+    utilities: Math.round(utilities),
+    rooms,
+    area,
+    zip,
+    city,
+    canton,
+    images,
+    contactName: item.agency?.name || item.agency?.name_2 || null,
+    contactEmail: item.agency?.email || null,
+    contactPhone: item.agency?.phone || null,
+    originalLink,
+    submitUrl,
+    availableFrom,
+    externalId: String(item.pk || ""),
+    source: "flatfox-api",
   }
 }
 
-/// Main routine
 async function main() {
   console.log("=".repeat(60))
-  console.log("GV Wohnungen – Daily Flatfox Scrape Agent")
-  console.log(`Max rent: CHF ${MAX_RENT}, Max age: ${MAX_DAYS_OLD} days`)
+  console.log("GV Wohnungen – Daily Flatfox Scrape (v2 API)")
+  console.log(`Max rent: CHF ${MAX_RENT}, Limit: ${SCRAPE_LIMIT}/page`)
   console.log("=".repeat(60))
   console.log()
 
   await ensureDbReady()
 
-  // Step 1: Fetch sitemap
-  const sitemap = await fetchSitemap()
-  if (sitemap.length === 0) {
-    console.error("[abort] No listings found in sitemap")
-    process.exit(1)
+  // Step 1: Check existing DB listings count
+  const existingCount = await db.property.count()
+  console.log(`[db] ${existingCount} existing listings`)
+
+  // Step 2: Fetch apartments from Flatfox API
+  const apartments = await fetchApartments()
+  if (apartments.length === 0) {
+    console.log("[api] No listings found. Trying without location filter…")
+    // API might need offset/page params different
   }
 
-  // Build set of sitemap URLs (normalised to flatfox.ch/en/flat/... format)
-  const sitemapUrls = new Set<string>()
-  const sitemapByUrl = new Map<string, SitemapEntry>()
-  for (const entry of sitemap) {
-    // Normalize: ensure we track the English flat URL
-    let normalized = entry.url
-    if (normalized.includes("/de/wohnung/")) {
-      normalized = normalized.replace("/de/wohnung/", "/en/flat/")
-    }
-    if (normalized.includes("/fr/flat/")) {
-      normalized = normalized.replace("/fr/flat/", "/en/flat/")
-    }
-    if (normalized.includes("/it/flat/")) {
-      normalized = normalized.replace("/it/flat/", "/en/flat/")
-    }
-    sitemapUrls.add(normalized)
-    if (!sitemapByUrl.has(normalized)) {
-      sitemapByUrl.set(normalized, entry)
-    }
-  }
-  console.log(`[sitemap] ${sitemapUrls.size} unique normalized URLs`)
-
-  // Step 2: Get all existing listings from DB
-  const existingListings = await db.property.findMany({
-    select: { id: true, originalLink: true, fetchedAt: true },
-  })
-  const existingByLink = new Map(existingListings.map((p) => [p.originalLink, p]))
-  console.log(`[db] ${existingListings.length} existing listings`)
-
-  // Step 3: Find listings to REMOVE (in DB but NOT in sitemap)
-  const toRemove = existingListings.filter(
-    (p) => !sitemapUrls.has(p.originalLink),
-  )
-  if (toRemove.length > 0) {
-    console.log(`[cleanup] ${toRemove.length} listings no longer in sitemap, removing …`)
-    for (const p of toRemove) {
-      await db.property.delete({ where: { id: p.id } })
-    }
-    console.log(`[cleanup] Removed ${toRemove.length} stale listings`)
-  } else {
-    console.log(`[cleanup] No stale listings to remove`)
-  }
-
-  // Step 4: Find NEW listings (in sitemap but not in DB)
-  const newUrls = [...sitemapUrls].filter((url) => !existingByLink.has(url))
-  // Filter by max rent (from URL context or we'll scrape first)
-  console.log(`[new] ${newUrls.length} potential new listings`)
-
-  // Step 5: Scrape new listings (bounded by MAX_DAYS_OLD)
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - MAX_DAYS_OLD)
-  const recentNewUrls = newUrls
-    .filter((url) => {
-      const entry = sitemapByUrl.get(url)
-      if (!entry?.lastmod) return true
-      const lastmod = new Date(entry.lastmod)
-      return lastmod >= cutoffDate
-    })
-    .slice(0, 50) // Limit to 50 per day to avoid overloading
-
-  console.log(`[scrape] Will scrape ${recentNewUrls.length} new listings (last ${MAX_DAYS_OLD} days)`)
-
+  // Step 3: Import each listing
   let imported = 0
-  for (let i = 0; i < recentNewUrls.length; i++) {
-    const url = recentNewUrls[i]
-    const entry = sitemapByUrl.get(url)
-    console.log(`  [${i + 1}/${recentNewUrls.length}] Scraping: ${url}`)
+  let updated = 0
+  let skipped = 0
 
-    const rawItem = await scrapeListingPage(url)
-    if (!rawItem) {
-      console.log(`    → skipped (no data)`)
-      continue
-    }
+  for (let i = 0; i < apartments.length; i++) {
+    const item = apartments[i]
+    const mapped = mapListing(item)
+    if (!mapped) { skipped++; continue }
 
-    // Map using the existing flatfox mapper
-    const mapped = mapFlatfoxItem(rawItem)
-    if (!mapped || !mapped.originalLink) {
-      console.log(`    → skipped (mapper returned null)`)
-      continue
-    }
+    // Skip 0-rent
+    if (mapped.rent <= 0) { skipped++; continue }
 
-    // Filter by max rent
-    if (MAX_RENT > 0 && mapped.rent > MAX_RENT) {
-      console.log(`    → skipped (rent ${mapped.rent} > ${MAX_RENT})`)
-      continue
-    }
+    // Skip if rent exceeds max
+    if (mapped.rent > MAX_RENT) { skipped++; continue }
 
-    // Skip 0-rent listings
-    if (mapped.rent === 0) {
-      console.log(`    → skipped (unknown rent)`)
-      continue
-    }
+    const progress = `[${i + 1}/${apartments.length}]`
 
-    // Check again for duplicates (race condition)
-    const dup = await db.property.findUnique({
+    // Check for duplicate
+    const existing = await db.property.findUnique({
       where: { originalLink: mapped.originalLink },
     })
-    if (dup) {
-      console.log(`    → skipped (duplicate)`)
-      continue
+
+    if (existing) {
+      // Update existing listing
+      await db.property.update({
+        where: { id: existing.id },
+        data: {
+          title: mapped.title,
+          description: mapped.description,
+          rent: mapped.rent,
+          utilities: mapped.utilities,
+          rooms: mapped.rooms,
+          area: mapped.area,
+          images: JSON.stringify(mapped.images),
+          availableFrom: mapped.availableFrom,
+          fetchedAt: new Date(),
+        },
+      })
+      updated++
+      console.log(`${progress} ✓ Updated: ${mapped.title} (CHF ${mapped.rent}, ${mapped.city})`)
+    } else {
+      // New listing
+      await db.property.create({
+        data: {
+          title: mapped.title,
+          description: mapped.description,
+          rent: mapped.rent,
+          utilities: mapped.utilities,
+          rooms: mapped.rooms,
+          area: mapped.area,
+          zip: mapped.zip,
+          city: mapped.city,
+          canton: mapped.canton,
+          images: JSON.stringify(mapped.images),
+          contactName: mapped.contactName,
+          contactEmail: mapped.contactEmail,
+          contactPhone: mapped.contactPhone,
+          originalLink: mapped.originalLink,
+          submitUrl: mapped.submitUrl,
+          availableFrom: mapped.availableFrom,
+          externalId: mapped.externalId,
+          source: "flatfox-api",
+          fetchedAt: new Date(),
+        },
+      })
+      imported++
+      console.log(`${progress} ✓ New: ${mapped.title} (CHF ${mapped.rent}, ${mapped.zip} ${mapped.city}, ${mapped.canton || "?"})`)
     }
 
-    // Import into DB
-    await db.property.create({
-      data: {
-        title: mapped.title,
-        description: mapped.description,
-        rent: mapped.rent,
-        utilities: mapped.utilities,
-        rooms: mapped.rooms,
-        area: mapped.area,
-        zip: mapped.zip,
-        city: mapped.city,
-        canton: mapped.canton,
-        images: JSON.stringify(mapped.images),
-        contactName: mapped.contactName,
-        contactEmail: mapped.contactEmail,
-        contactPhone: mapped.contactPhone,
-        originalLink: mapped.originalLink,
-        submitUrl: mapped.submitUrl,
-        availableFrom: mapped.availableFrom,
-        externalId: mapped.externalId,
-        source: "flatfox",
-        fetchedAt: new Date(),
-      },
-    })
-    imported++
-    console.log(`    → imported: ${mapped.title} (CHF ${mapped.rent}, ${mapped.city})`)
+    // Small delay to be nice to the API
+    if (i < apartments.length - 1) await new Promise((r) => setTimeout(r, 300))
   }
 
-  // Step 6: Summary
+  // Step 4: Remove listings that are no longer available
+  // (We keep the 10-day TTL cleanup from property-cache.ts)
+  // Add a soft cleanup: remove listings older than 14 days with no update
+  const cutoffDate = new Date()
+  cutoffDate.setDate(cutoffDate.getDate() - 14)
+  const staleResult = await db.property.deleteMany({
+    where: { fetchedAt: { lt: cutoffDate } },
+  })
+  if (staleResult.count > 0) {
+    console.log(`[cleanup] Removed ${staleResult.count} stale listings (>14 days without refresh)`)
+  }
+
+  // Summary
   console.log()
   console.log("=".repeat(60))
   console.log("SUMMARY")
-  console.log(`  Removed (no longer available): ${toRemove.length}`)
-  console.log(`  Imported (new affordable listings): ${imported}`)
-  console.log(`  Total in DB: ${existingListings.length - toRemove.length + imported}`)
+  console.log(`  New: ${imported}`)
+  console.log(`  Updated: ${updated}`)
+  console.log(`  Skipped (invalid/duplicate): ${skipped}`)
+  console.log(`  Removed (stale): ${staleResult.count}`)
+  console.log(`  Total in DB: ${await db.property.count()}`)
   console.log("=".repeat(60))
 
   await db.$disconnect()
