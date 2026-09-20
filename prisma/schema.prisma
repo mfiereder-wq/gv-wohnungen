@@ -1,0 +1,139 @@
+// GV Wohnungen - Prisma Schema
+// Schweizer Immobilienplattform fuer bezahlbaren Wohnraum
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Nutzerkonto - Wohnungssuchende mit optionalem Abo
+model User {
+  id                String         @id @default(cuid())
+  email             String         @unique
+  name              String?
+  passwordHash      String
+  /// Status: none | active | past_due | canceled | trialing
+  subscriptionStatus String        @default("none")
+  stripeCustomerId  String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  subscription      Subscription?
+  cooperativePurchase CooperativePurchase?
+
+  @@map("users")
+}
+
+/// Immobilien-Inserate
+model Property {
+  id            String   @id @default(cuid())
+  title         String
+  description   String
+  /// Kaltmiete in CHF (ganze Franken)
+  rent          Int
+  /// Nebenkosten in CHF
+  utilities     Int      @default(0)
+  /// Zimmeranzahl (z. B. 3.5)
+  rooms         Float
+  /// Wohnflaeche in m²
+  area          Int
+  /// Postleitzahl
+  zip           String
+  /// Ortschaft
+  city          String
+  /// Kanton (z. B. "Zürich", "Bern")
+  canton        String
+  /// JSON-Array von Bild-URLs
+  images        String   @default("[]")
+  /// Geschuetzte Kontaktdaten (optional - nicht alle Flatfox-Inserate haben welche)
+  contactName   String?
+  contactEmail  String?
+  contactPhone  String?
+  /// Geschuetzter Original-Inseratelink (unique fuer Dedup beim Sync)
+  originalLink  String   @unique
+  /// Flatfox-Kontaktformular-Link (submit_url), fuer Premium-User
+  submitUrl     String?
+  /// Verfuegbar ab (ISO-Datumstring)
+  availableFrom String   @default("")
+  /// Quelle: "flatfox" (echte Inserate via Apify)
+  source        String   @default("flatfox")
+  /// Externe ID (z. B. Flatfox-Listing-ID)
+  externalId    String?
+  /// Wann das Inserat zuletzt von Flatfox abgerufen wurde (fuer TTL)
+  fetchedAt     DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([canton])
+  @@index([city])
+  @@index([zip])
+  @@index([rent])
+  @@index([rooms])
+  @@map("properties")
+}
+
+/// Stripe-Abonnement eines Nutzers
+model Subscription {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  stripeSubscriptionId  String?
+  /// Status: active | past_due | canceled | trialing | incomplete
+  status                String   @default("incomplete")
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+/// In-Memory-Sessions (fuer Demo-Auth ohne externe Session-DB)
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Genossenschaften mit guenstigem Wohnraum
+model Cooperative {
+  id              String   @id @default(cuid())
+  name            String
+  size            String   @default("")
+  address         String   @default("")
+  phone           String?
+  email           String?
+  website         String   @default("")
+  applicationInfo String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("cooperatives")
+}
+
+/// Einmaliger Kauf: Genossenschafts-Liste freigeschaltet
+model CooperativePurchase {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  stripePaymentId    String?
+  status             String   @default("none") // none | paid
+  purchasedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("cooperative_purchases")
+}
+

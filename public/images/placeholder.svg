@@ -1,0 +1,10 @@
+<svg width="1344" height="768" viewBox="0 0 1344 768" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1344" height="768" fill="#E8EDE8"/>
+  <rect x="522" y="290" width="300" height="220" rx="12" fill="#CBD5CB"/>
+  <circle cx="590" cy="360" r="28" fill="#A8B5A8"/>
+  <path d="M540 510 L620 420 L690 480 L760 390 L820 470 L820 510 Z" fill="#A8B5A8"/>
+  <rect x="552" y="545" width="240" height="16" rx="8" fill="#CBD5CB"/>
+  <rect x="592" y="575" width="160" height="12" rx="6" fill="#D5DDD5"/>
+  <text x="672" y="660" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#7A8A7A" font-weight="600">GV Wohnungen</text>
+  <text x="672" y="690" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#9AAB9A">Wohnungsbeeld</text>
+</svg>
