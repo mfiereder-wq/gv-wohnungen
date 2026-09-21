@@ -81,10 +81,10 @@ export function SearchBar() {
   const [showAdvanced, setShowAdvanced] = useState(false)
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow duration-300 focus-within:shadow-md sm:p-5">
+    <div className="rounded-2xl border border-border bg-card p-3 shadow-sm transition-shadow duration-300 focus-within:shadow-md sm:p-5">
       {/* Haupt-Suchleiste */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:gap-4">
-        <div className="flex-1 space-y-1.5">
+      <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-end lg:gap-4">
+        <div className="flex-1 space-y-1 sm:space-y-1.5">
           <Label htmlFor="q" className="text-xs font-medium text-muted-foreground">
             Suchbegriff
           </Label>
@@ -95,12 +95,12 @@ export function SearchBar() {
               placeholder="Ort, Kanton oder Stichwort..."
               value={filters.q}
               onChange={(e) => setFilters({ q: e.target.value })}
-              className="pl-9"
+              className="pl-9 min-h-[44px]"
             />
           </div>
         </div>
 
-        <div className="flex-1 space-y-1.5">
+        <div className="flex-1 space-y-1 sm:space-y-1.5">
           <Label htmlFor="canton" className="text-xs font-medium text-muted-foreground">
             Kanton
           </Label>
@@ -110,7 +110,7 @@ export function SearchBar() {
               setFilters({ canton: v === "__all" ? "" : v })
             }
           >
-            <SelectTrigger id="canton" className="w-full">
+            <SelectTrigger id="canton" className="w-full min-h-[44px]">
               <SelectValue placeholder="Alle Kantone" />
             </SelectTrigger>
             <SelectContent className="max-h-72">
@@ -134,7 +134,7 @@ export function SearchBar() {
               setFilters({ maxRent: v === "__any" ? "" : v })
             }
           >
-            <SelectTrigger id="maxRent" className="w-full">
+            <SelectTrigger id="maxRent" className="w-full min-h-[44px]">
               <SelectValue placeholder="keine Begrenzung" />
             </SelectTrigger>
             <SelectContent className="max-h-72">
@@ -157,7 +157,7 @@ export function SearchBar() {
               setFilters({ minRooms: v === "__any" ? "" : v })
             }
           >
-            <SelectTrigger id="minRooms" className="w-full">
+            <SelectTrigger id="minRooms" className="w-full min-h-[44px]">
               <SelectValue placeholder="egal" />
             </SelectTrigger>
             <SelectContent className="max-h-72">
@@ -174,7 +174,7 @@ export function SearchBar() {
           type="button"
           variant="outline"
           onClick={() => setShowAdvanced((v) => !v)}
-          className="gap-2 transition-colors lg:self-end"
+          className="gap-2 transition-colors lg:self-end min-h-[44px]"
         >
           <SlidersHorizontal className="h-4 w-4" />
           <span className="lg:hidden xl:inline">Erweitert</span>
@@ -195,7 +195,7 @@ export function SearchBar() {
                 placeholder="z. B. Zürich"
                 value={filters.city}
                 onChange={(e) => setFilters({ city: e.target.value })}
-                className="pl-9"
+                className="pl-9 min-h-[44px]"
               />
             </div>
           </div>
@@ -209,6 +209,7 @@ export function SearchBar() {
               value={filters.zip}
               onChange={(e) => setFilters({ zip: e.target.value })}
               inputMode="numeric"
+              className="min-h-[44px]"
             />
           </div>
           <div className="space-y-1.5">

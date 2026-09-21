@@ -98,7 +98,7 @@ function HomePageContent() {
           <div className="absolute inset-0 bg-primary/20" />
 
           {/* Content ueber dem Video */}
-          <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
             <div className="mx-auto max-w-2xl text-center">
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
@@ -107,9 +107,9 @@ function HomePageContent() {
               >
                 <Badge
                   variant="secondary"
-                  className="mb-3 gap-1.5 border-white/20 bg-white/10 text-white backdrop-blur"
+                  className="mb-2 gap-1 border-white/20 bg-white/10 text-white backdrop-blur sm:mb-3 sm:gap-1.5"
                 >
-                  <TrendingDown className="h-3.5 w-3.5" />
+                  <TrendingDown className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   Bezahlbarer Wohnraum Schweiz
                 </Badge>
               </motion.div>
@@ -117,7 +117,7 @@ function HomePageContent() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-                className="text-balance text-3xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:text-4xl lg:text-5xl"
+                className="text-balance text-2xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:text-4xl lg:text-5xl"
               >
                 Wohnungen in der Schweiz finden
               </motion.h1>
@@ -125,7 +125,7 @@ function HomePageContent() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
-                className="mx-auto mt-4 max-w-xl text-pretty text-base text-white/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] sm:text-lg"
+                className="mx-auto mt-3 max-w-xl text-pretty text-sm text-white/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] sm:text-lg"
               >
                 Schluss mit endlosem Suchen auf dutzenden Portalen. Wir
                 buendeln alle Inserate an einem Ort – damit du schneller die
