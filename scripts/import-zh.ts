@@ -108,7 +108,7 @@ async function main() {
   for (let i = 0; i < zhApartments.length; i++) {
     const item = zhApartments[i]
     const rent = item.price_display || item.rent_net || 0
-    if (rent <= 0) continue
+    if (rent <= 0 || rent > 1500) continue
 
     const relUrl = item.url || ""
     const originalLink = relUrl.startsWith("http") ? relUrl : `https://flatfox.ch${relUrl || `/en/flat/${item.pk}/`}`
