@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useSession, signOut } from "next-auth/react"
-import { Home, LogIn, UserCircle, LogOut, Crown, Menu, X } from "lucide-react"
+import { LogIn, UserCircle, LogOut, Crown, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -33,9 +33,11 @@ export function Header() {
           className="flex items-center gap-2 transition-opacity hover:opacity-80"
           aria-label="GV Wohnungen Startseite"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <Home className="h-5 w-5" strokeWidth={2.5} />
-          </div>
+          <img
+            src="/logo-small.png"
+            alt="GV Wohnungen"
+            className="h-9 w-auto"
+          />
           <div className="flex flex-col leading-none">
             <span className="text-lg font-bold tracking-tight text-foreground">
               GV Wohnungen
