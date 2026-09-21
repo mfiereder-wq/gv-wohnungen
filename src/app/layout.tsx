@@ -19,25 +19,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "GV Wohnungen – Bezahlbare Mietwohnungen in der Schweiz",
   description:
-    "Finde günstige Wohnungen in der Schweiz. Echte Inserate von Flatfox, Homegate und Comparis. Filtere nach Kanton, Preis und Zimmeranzahl – oder entdecke günstigen Wohnraum bei Genossenschaften.",
+    "Finde günstige Wohnungen in der Schweiz. Echte Inserate von Flatfox, Homegate und Comparis. Filtere nach Kanton, Preis und Zimmeranzahl.",
   keywords: [
     "Wohnung",
     "Miete",
     "Schweiz",
     "günstig",
-    "billig",
     "Immobilien",
     "Mietwohnung",
     "Wohnungssuche",
-    "Genossenschaft",
-    "Wohnungsgenossenschaft",
-    "Zürich",
-    "Bern",
-    "Basel",
-    "Flatfox",
-    "Homegate",
-    "Comparis",
-    "Wohnungsinserate",
   ],
   authors: [{ name: "GV Wohnungen" }],
   openGraph: {
@@ -65,7 +55,7 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: "google-site-verification-code", // Ersetzen mit echtem Code
+    google: "google-site-verification-code",
   },
   alternates: {
     canonical: "https://www.gv-wohnungen.online",
