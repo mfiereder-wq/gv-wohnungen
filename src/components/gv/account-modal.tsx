@@ -224,10 +224,17 @@ export function AccountModal() {
                         <div className="flex items-center gap-2">
                           <CalendarDays className="h-4 w-4 text-primary" />
                           <span>
-                            Nächste Abrechnung:{" "}
-                            <span className="font-medium text-foreground">
-                              {formatDate(sub.currentPeriodEnd)}
-                            </span>
+                            {(() => {
+                              const end = new Date(sub.currentPeriodEnd)
+                              const now = new Date()
+                              const diffMs = end.getTime() - now.getTime()
+                              const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+                              if (diffDays <= 0) return "Läuft heute ab"
+                              if (diffDays === 1) return "Noch 1 Tag aktiv"
+                              if (diffDays < 7) return `Noch ${diffDays} Tage aktiv`
+                              const weeks = Math.floor(diffDays / 7)
+                              return `${weeks} Woche${weeks > 1 ? "n" : ""} aktiv`
+                            })()}
                           </span>
                         </div>
                       )}
