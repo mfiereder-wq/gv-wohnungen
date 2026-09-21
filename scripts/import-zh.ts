@@ -1,18 +1,17 @@
 #!/usr/bin/env tsx
 /**
- * GV Wohnungen – Import Zürich Apartments
- * Holt günstige Wohnungen (≤ CHF 1'500) aus dem Kanton Zürich
- * via Flatfox Public API und importiert sie in die DB.
+ * GV Wohnungen – Import Zürich Apartments (v2)
  *
- * Usage: npx tsx scripts/import-zh.ts
+ * Holt alle günstigen Wohnungen ≤ CHF 1'500 aus der Flatfox API,
+ * filtert NUR Kanton Zürich (state=ZH) und importiert in die DB.
+ *
+ * Usage: DATABASE_URL=... npx tsx scripts/import-zh.ts
  */
 
 import "dotenv/config"
 import { PrismaClient } from "@prisma/client"
 
 const API_BASE = "https://flatfox.ch/api/v1/public-listing/"
-const MAX_RENT = 1500
-const STATE = "ZH"
 
 const stateMap: Record<string, string> = {
   ZH: "Zürich", BE: "Bern", LU: "Luzern", UR: "Uri", SZ: "Schwyz",
@@ -24,13 +23,27 @@ const stateMap: Record<string, string> = {
   GE: "Genève", JU: "Jura",
 }
 
+const ZH_ZIP_RANGES = [
+  [8000, 8099], [8100, 8199], [8300, 8499],
+  [8600, 8699], [8700, 8799], [8800, 8899], [8900, 8999],
+]
+
+function isZurichZip(zip: string): boolean {
+  const z = parseInt(zip, 10)
+  if (isNaN(z)) return false
+  for (const [lo, hi] of ZH_ZIP_RANGES) {
+    if (z >= lo && z <= hi) return true
+  }
+  return false
+}
+
 async function fetchImages(url: string): Promise<string[]> {
   try {
     const ctrl = new AbortController()
     setTimeout(() => ctrl.abort(), 8000)
     const resp = await fetch(url, {
       signal: ctrl.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; GVWohnungen/1.0)" },
+      headers: { "User-Agent": "Mozilla/5.0" },
     })
     const html = await resp.text()
     const imgRegex = /href="(\/media\/ff\/\d{4}\/\d{2}\/[a-z0-9]+\.(?:jpg|jpeg|png))"/gi
@@ -48,60 +61,64 @@ async function fetchImages(url: string): Promise<string[]> {
 
 async function main() {
   const prisma = new PrismaClient()
-  
+
   console.log("=".repeat(60))
-  console.log("GV Wohnungen – Zürich Import")
-  console.log(`Max Miete: CHF ${MAX_RENT}, Kanton: ${STATE}`)
+  console.log("GV Wohnungen – Zürich Import v2")
+  console.log("Holt Wohnungen aus Flatfox API, filtert Kanton ZH")
   console.log("=".repeat(60))
 
-  // Step 1: Fetch from API
-  const allListings: any[] = []
-  for (let page = 1; page <= 15; page++) {
-    const url = `${API_BASE}?max_price=${MAX_RENT}&limit=50&state=${STATE}&offset=${(page - 1) * 50}`
+  // Fetch 20 pages x 30 items = 600 total listings
+  const allRaw: any[] = []
+  for (let page = 1; page <= 20; page++) {
+    const url = `${API_BASE}?max_price=1500&limit=30&offset=${(page - 1) * 30}`
     const ctrl = new AbortController()
     const to = setTimeout(() => ctrl.abort(), 15000)
     try {
       const resp = await fetch(url, {
         signal: ctrl.signal,
-        headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" },
+        headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0 (GVWohnungen/1.0)" },
       })
       clearTimeout(to)
       if (!resp.ok) { console.log(`  HTTP ${resp.status} – stop`); break }
       const data = await resp.json()
       const results = data.results || []
       if (results.length === 0) break
-      allListings.push(...results)
-      const apts = results.filter((r: any) => r.object_category === "APARTMENT").length
-      console.log(`  Seite ${page}: ${results.length} total, ${apts} Wohnungen`)
+      allRaw.push(...results)
+      console.log(`  Seite ${page}: ${results.length} geladen`)
     } catch (e: any) {
       clearTimeout(to)
       console.log(`  Seite ${page}: ${e.message}`)
       break
     }
-    await new Promise((r) => setTimeout(r, 600))
+    await new Promise((r) => setTimeout(r, 500))
   }
 
-  const apartments = allListings.filter((r: any) => r.object_category === "APARTMENT")
-  console.log(`\nGefunden: ${allListings.length} Inserate, ${apartments.length} Wohnungen\n`)
+  // Filter: Nur APARTMENT + Zürich (state=ZH oder ZIP in ZH-Bereich)
+  const zhApartments = allRaw.filter((r: any) => {
+    if (r.object_category !== "APARTMENT") return false
+    const state = String(r.state || "").toUpperCase()
+    if (state === "ZH") return true
+    // Fallback: ZIP check
+    return isZurichZip(String(r.zipcode || ""))
+  })
 
-  // Step 2: Import
-  let imported = 0, updated = 0, skipped = 0
-  for (let i = 0; i < apartments.length; i++) {
-    const item = apartments[i]
+  console.log(`\nGefunden: ${allRaw.length} Inserate, ${zhApartments.length} Zürich-Wohnungen\n`)
+
+  let imported = 0, updated = 0
+  for (let i = 0; i < zhApartments.length; i++) {
+    const item = zhApartments[i]
     const rent = item.price_display || item.rent_net || 0
-    if (rent <= 0 || rent > MAX_RENT) { skipped++; continue }
+    if (rent <= 0) continue
 
     const relUrl = item.url || ""
     const originalLink = relUrl.startsWith("http") ? relUrl : `https://flatfox.ch${relUrl || `/en/flat/${item.pk}/`}`
-    const canton = stateMap[String(item.state || "").toUpperCase()] || ""
-
-    console.log(`  [${i + 1}/${apartments.length}] ${item.city || "?"}: CHF ${rent}`)
+    const canton = stateMap[String(item.state || "").toUpperCase()] || "Zürich"
 
     const images = await fetchImages(originalLink)
     const finalImages = images.length > 0 ? images : ["/images/placeholder.svg"]
 
     const data = {
-      title: (item.public_title || item.rent_title || `Wohnung ${item.zipcode} ${item.city}`).slice(0, 300),
+      title: (item.public_title || item.rent_title || `Wohnung in ${item.zipcode} ${item.city}`).slice(0, 300),
       description: item.description || item.description_title || "",
       rent: Math.round(rent),
       utilities: Math.round(item.rent_charges || 0),
@@ -130,14 +147,14 @@ async function main() {
       await prisma.property.create({ data })
       imported++
     }
+    console.log(`  [${i + 1}/${zhApartments.length}] ${item.city || "?"}: CHF ${rent}, ${data.rooms} Zi, ${images.length} Bilder`)
   }
 
   const total = await prisma.property.count()
   console.log(`\n=== Resultat ===`)
-  console.log(`  Neu: ${imported}`)
+  console.log(`  Neu importiert: ${imported}`)
   console.log(`  Aktualisiert: ${updated}`)
-  console.log(`  Übersprungen: ${skipped}`)
-  console.log(`  Total DB: ${total}`)
+  console.log(`  Total in DB: ${total}`)
   console.log("=".repeat(60))
 
   await prisma.$disconnect()
