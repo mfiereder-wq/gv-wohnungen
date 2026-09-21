@@ -416,7 +416,7 @@ function getEmbeddedProperties() {
       title: "Urdorferstrasse 96, 8952 Schlieren - CHF 794",
       description: "WG-Zimmer in Schlieren. Gemuetliches, helles WG-Zimmer zu vermieten.",
       rent: 794, utilities: 0, rooms: 1, area: 15,
-      zip: "8952", city: "Schlieren", canton: "Thurgau",
+      zip: "8952", city: "Schlieren", canton: "Zürich",
       images: JSON.stringify(["https://cdn.flatfox.ch/listings/v2/h572221/4003467627/image/34716b44e35c98680a2a38e4ebf062e5.jpg"]),
       contactName: null, contactEmail: null, contactPhone: null,
       originalLink: "https://flatfox.ch/en/flat/urdorferstrasse-96-8952-schlieren/86360612/",

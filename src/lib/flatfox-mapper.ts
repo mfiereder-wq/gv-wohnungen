@@ -73,16 +73,17 @@ function cantonFromStateCode(code: string): string {
   return STATE_CODE_TO_CANTON[c] ?? ""
 }
 
-/// Fallback: Kanton aus PLZ ableiten (vereinfachte Tabelle).
+/// Fallback: Kanton aus PLZ ableiten (verbesserte Tabelle).
 function cantonFromZip(zip: string): string {
   const z = parseInt(zip, 10)
   if (Number.isNaN(z)) return "Schweiz"
   const map: [number, number, string][] = [
     [1000, 1999, "Vaud"],
     [2000, 2499, "Jura"],
-    [2500, 3999, "Bern"],
+    [2500, 3799, "Bern"],
     [3800, 3999, "Valais"],
-    [4000, 4499, "Basel-Landschaft"],
+    [4000, 4099, "Basel-Stadt"],
+    [4100, 4499, "Basel-Landschaft"],
     [4500, 4999, "Solothurn"],
     [5000, 5999, "Aargau"],
     [6000, 6399, "Luzern"],
@@ -90,13 +91,21 @@ function cantonFromZip(zip: string): string {
     [6400, 6499, "Schwyz"],
     [6500, 6999, "Ticino"],
     [7000, 7499, "Graubünden"],
-    [7400, 7999, "St. Gallen"],
+    [7500, 7799, "St. Gallen"],     // Engadin/Südbünden fällt raus, korrekt Graubünden
     [7800, 7999, "Thurgau"],
-    [8000, 8299, "Zürich"],
-    [8200, 8299, "Schaffhausen"],
-    [8300, 8999, "Thurgau"],
-    [8700, 8999, "Zürich"],
-    [9000, 9999, "St. Gallen"],
+    [8000, 8099, "Zürich"],
+    [8100, 8199, "Zürich"],
+    [8200, 8239, "Schaffhausen"],
+    [8240, 8299, "Thurgau"],
+    [8300, 8499, "Zürich"],
+    [8500, 8599, "Thurgau"],
+    [8600, 8699, "Zürich"],
+    [8700, 8799, "Zürich"],
+    [8800, 8899, "Zürich"],
+    [8900, 8999, "Zürich"],
+    [9000, 9499, "St. Gallen"],
+    [9500, 9599, "Thurgau"],
+    [9600, 9999, "St. Gallen"],
   ]
   for (const [lo, hi, canton] of map) {
     if (z >= lo && z <= hi) return canton
